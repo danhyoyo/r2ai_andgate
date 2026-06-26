@@ -45,7 +45,7 @@ Import toàn bộ corpus chính cho bản final:
 
 ```powershell
 python -m src.preprocess.import_hf_legal `
-  --backend datasets `
+  --backend parquet `
   --output data/processed/articles.jsonl `
   --max-docs -1 `
   --metadata-scan-limit -1 `
@@ -57,7 +57,7 @@ Smoke test nhanh trước khi chạy dài:
 
 ```powershell
 python -m src.preprocess.import_hf_legal `
-  --backend datasets `
+  --backend parquet `
   --output data/processed/sample_articles.jsonl `
   --max-docs 20 `
   --metadata-scan-limit 500 `

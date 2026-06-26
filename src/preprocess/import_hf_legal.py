@@ -119,6 +119,63 @@ def fetch_rows_from_datasets(
     return [fix_mojibake(dict(row)) for row in stream]
 
 
+def _download_parquet_file(dataset: str, config: str) -> Path:
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError as exc:
+        raise RuntimeError("The parquet backend requires: pip install huggingface-hub") from exc
+
+    filename = f"data/{config}.parquet"
+    return Path(hf_hub_download(repo_id=dataset, repo_type="dataset", filename=filename))
+
+
+def fetch_rows_from_parquet(
+    *,
+    dataset: str,
+    config: str,
+    split: str,
+    offset: int,
+    length: int,
+) -> list[dict[str, Any]]:
+    if split != "data":
+        raise ValueError("The parquet backend currently supports only split='data'.")
+    try:
+        import pyarrow.parquet as pq
+    except ImportError as exc:
+        raise RuntimeError("The parquet backend requires: pip install pyarrow") from exc
+
+    if length == 0:
+        return []
+
+    parquet_path = _download_parquet_file(dataset, config)
+    parquet_file = pq.ParquetFile(parquet_path)
+    rows: list[dict[str, Any]] = []
+    seen = 0
+    target = None if length < 0 else offset + length
+    batch_size = max(1, min(1024, length if length > 0 else 1024))
+
+    for batch in parquet_file.iter_batches(batch_size=batch_size):
+        batch_count = batch.num_rows
+        batch_start = seen
+        batch_end = seen + batch_count
+        seen = batch_end
+        if batch_end <= offset:
+            continue
+        if target is not None and batch_start >= target:
+            break
+
+        start_in_batch = max(0, offset - batch_start)
+        end_in_batch = batch_count if target is None else min(batch_count, target - batch_start)
+        if end_in_batch <= start_in_batch:
+            continue
+        sliced = batch.slice(start_in_batch, end_in_batch - start_in_batch)
+        rows.extend(fix_mojibake(row) for row in sliced.to_pylist())
+        if target is not None and len(rows) >= length:
+            break
+
+    return rows[:length] if length > 0 else rows
+
+
 def fetch_rows(
     *,
     dataset: str,
@@ -128,33 +185,42 @@ def fetch_rows(
     length: int,
     backend: str = "auto",
 ) -> list[dict[str, Any]]:
-    errors: list[Exception] = []
-    if backend in {"auto", "datasets"}:
-        try:
-            return fetch_rows_from_datasets(
-                dataset=dataset,
-                config=config,
-                split=split,
-                offset=offset,
-                length=length,
-            )
-        except Exception as exc:
-            if backend == "datasets":
-                raise
-            errors.append(exc)
+    errors: list[str] = []
+    backend_order = ["parquet", "datasets", "rows"] if backend == "auto" else [backend]
 
-    try:
-        return fetch_rows_from_api(
-            dataset=dataset,
-            config=config,
-            split=split,
-            offset=offset,
-            length=length,
-        )
-    except Exception as exc:
-        if errors:
-            raise RuntimeError(f"datasets backend failed: {errors[-1]}; rows API backend failed: {exc}") from exc
-        raise
+    for candidate in backend_order:
+        try:
+            if candidate == "parquet":
+                return fetch_rows_from_parquet(
+                    dataset=dataset,
+                    config=config,
+                    split=split,
+                    offset=offset,
+                    length=length,
+                )
+            if candidate == "datasets":
+                return fetch_rows_from_datasets(
+                    dataset=dataset,
+                    config=config,
+                    split=split,
+                    offset=offset,
+                    length=length,
+                )
+            if candidate == "rows":
+                return fetch_rows_from_api(
+                    dataset=dataset,
+                    config=config,
+                    split=split,
+                    offset=offset,
+                    length=length,
+                )
+            raise ValueError(f"Unknown backend: {candidate}")
+        except Exception as exc:
+            errors.append(f"{candidate}: {exc}")
+            if backend != "auto":
+                raise
+
+    raise RuntimeError("; ".join(errors))
 
 def html_to_text(value: str) -> str:
     text = fix_mojibake(value or "")
@@ -315,7 +381,7 @@ def main() -> int:
     parser.add_argument("--dataset", default=DEFAULT_DATASET)
     parser.add_argument("--content-config", default="content")
     parser.add_argument("--metadata-config", default="metadata")
-    parser.add_argument("--backend", choices=("auto", "datasets", "rows"), default="auto")
+    parser.add_argument("--backend", choices=("auto", "parquet", "datasets", "rows"), default="auto")
     parser.add_argument("--split", default="data")
     parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--max-docs", type=int, default=1000, help="Number of content rows to scan; use -1 for all rows.")
