@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import math
+from functools import lru_cache
 from typing import Any
 
 from src.common.io import read_json_records
@@ -77,6 +78,26 @@ def generate_extractive_answer(question: str, articles: list[dict[str, Any]]) ->
     )
 
 
+
+@lru_cache(maxsize=2)
+def _load_local_llm(model_path: str) -> tuple[Any, Any]:
+    try:
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+        import torch
+    except ImportError as exc:
+        raise RuntimeError("Local LLM generation requires transformers and torch.") from exc
+
+    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        device_map="auto",
+        trust_remote_code=True,
+    )
+    model.eval()
+    return tokenizer, model
+
+
 def generate_answer(question: str, articles: list[dict[str, Any]], *, model_path: str = "") -> str:
     """Generate a grounded answer.
 
@@ -87,22 +108,15 @@ def generate_answer(question: str, articles: list[dict[str, Any]], *, model_path
     if not model_path:
         return generate_extractive_answer(question, articles)
 
-    try:
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-        import torch
-    except ImportError as exc:
-        raise RuntimeError("Local LLM generation requires transformers and torch.") from exc
-
     prompt = build_answer_prompt(question, articles)
-    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-        device_map="auto",
-        trust_remote_code=True,
-    )
+    tokenizer, model = _load_local_llm(model_path)
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    output = model.generate(**inputs, max_new_tokens=768, do_sample=False, temperature=0.0, top_p=0.9)
+    output = model.generate(
+        **inputs,
+        max_new_tokens=768,
+        do_sample=False,
+        pad_token_id=tokenizer.eos_token_id,
+    )
     text = tokenizer.decode(output[0], skip_special_tokens=True)
     return text[len(prompt) :].strip() if text.startswith(prompt) else text.strip()
 
