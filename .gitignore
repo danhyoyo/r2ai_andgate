@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local model/index artifacts can be large and reproducible.
+indexes/bm25/*.pkl
+indexes/faiss_bge_m3/*.pkl
+indexes/faiss_bge_m3/*.faiss
+indexes/chroma/*
+!indexes/README.md
+
+# Submission files are generated from data and code.
+results/results.json
+results/submission.zip
+results/ablation/
+!results/README.md
+

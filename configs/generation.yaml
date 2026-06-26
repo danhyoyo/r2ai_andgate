@@ -1,0 +1,25 @@
+answer_prompt:
+  must_use_context_only: true
+  must_cite_article_pattern: "Điều X"
+  audience: "chủ doanh nghiệp, kế toán, nhân sự SME"
+  fallback_phrase: "Dựa trên dữ liệu được cung cấp, chưa đủ căn cứ để kết luận đầy đủ."
+
+generation:
+  mode: extractive_fallback
+  local_llm_optional: true
+  local_llm_recommended: Qwen/Qwen2.5-7B-Instruct
+  temperature: 0.0
+  max_new_tokens: 768
+
+verification:
+  normalize_article_number: true
+  check_answer_citations_in_relevant_articles: true
+  check_relevant_articles_cited_in_answer: true
+  repair_missing_answer_citations: true
+  validate_json_fields:
+    - id
+    - question
+    - answer
+    - relevant_docs
+    - relevant_articles
+

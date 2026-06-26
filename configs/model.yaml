@@ -1,0 +1,24 @@
+# Model choices follow the contest constraints:
+# - open-source / downloadable weights
+# - under 14B parameters
+# - released before 2026-03-01
+
+generator:
+  primary: Qwen/Qwen2.5-7B-Instruct
+  fallback: vinai/PhoGPT-4B-Chat
+  temperature: 0.0
+  top_p: 0.9
+  max_new_tokens: 768
+
+embedding:
+  primary: BAAI/bge-m3
+  benchmark:
+    - hmthanh/VietnamLegalText-SBERT
+
+reranker:
+  primary: BAAI/bge-reranker-v2-m3
+
+notes:
+  - Do not use closed model APIs such as GPT-4o or Gemini for submission generation.
+  - Keep model download paths and license/source notes in the working notes paper.
+

@@ -1,0 +1,38 @@
+query_processing:
+  expand_abbreviations:
+    SME: doanh nghiệp nhỏ và vừa
+    DNNVV: doanh nghiệp nhỏ và vừa
+    BHXH: bảo hiểm xã hội
+    GTGT: giá trị gia tăng
+    TNDN: thu nhập doanh nghiệp
+  max_query_variants: 5
+
+hybrid_retrieval:
+  bm25_top_k: 150
+  dense_top_k: 150
+  metadata_top_k: 50
+  rrf_k: 60
+  fused_top_k: 100
+
+reranking:
+  top_k: 20
+  use_cross_encoder: false
+  rule_boosts:
+    domain_match: 0.08
+    condition_terms: 0.08
+    concept_match: 0.04
+
+selection_policies:
+  recall:
+    min_articles: 7
+    max_articles: 10
+    relative_threshold: 0.72
+  balanced:
+    min_articles: 4
+    max_articles: 7
+    relative_threshold: 0.85
+  precision:
+    min_articles: 2
+    max_articles: 5
+    relative_threshold: 0.93
+

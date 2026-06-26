@@ -1,0 +1,9 @@
+# Optional acceleration / model dependencies.
+# Core BM25 + validation pipeline uses only the Python standard library.
+
+sentence-transformers
+numpy
+torch
+transformers
+faiss-cpu
+
