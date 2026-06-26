@@ -54,7 +54,7 @@ def fix_mojibake(value: Any) -> Any:
     return repaired if _mojibake_score(repaired) < _mojibake_score(value) else value
 
 
-def fetch_rows(
+def fetch_rows_from_api(
     *,
     dataset: str,
     config: str,
@@ -96,6 +96,66 @@ def fetch_rows(
     return [fix_mojibake(item.get("row", {})) for item in payload.get("rows", [])]
 
 
+def fetch_rows_from_datasets(
+    *,
+    dataset: str,
+    config: str,
+    split: str,
+    offset: int,
+    length: int,
+) -> list[dict[str, Any]]:
+    try:
+        from datasets import load_dataset
+    except ImportError as exc:
+        raise RuntimeError("The datasets backend requires: pip install datasets") from exc
+
+    if length == 0:
+        return []
+    stream = load_dataset(dataset, config, split=split, streaming=True)
+    if offset > 0:
+        stream = stream.skip(offset)
+    if length > 0:
+        stream = stream.take(length)
+    return [fix_mojibake(dict(row)) for row in stream]
+
+
+def fetch_rows(
+    *,
+    dataset: str,
+    config: str,
+    split: str,
+    offset: int,
+    length: int,
+    backend: str = "auto",
+) -> list[dict[str, Any]]:
+    errors: list[Exception] = []
+    if backend in {"auto", "datasets"}:
+        try:
+            return fetch_rows_from_datasets(
+                dataset=dataset,
+                config=config,
+                split=split,
+                offset=offset,
+                length=length,
+            )
+        except Exception as exc:
+            if backend == "datasets":
+                raise
+            errors.append(exc)
+
+    try:
+        return fetch_rows_from_api(
+            dataset=dataset,
+            config=config,
+            split=split,
+            offset=offset,
+            length=length,
+        )
+    except Exception as exc:
+        if errors:
+            raise RuntimeError(f"datasets backend failed: {errors[-1]}; rows API backend failed: {exc}") from exc
+        raise
+
 def html_to_text(value: str) -> str:
     text = fix_mojibake(value or "")
     text = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", str(text))
@@ -125,6 +185,7 @@ def load_metadata_map(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
             split=args.split,
             offset=offset,
             length=length,
+            backend=args.backend,
         )
         if not rows:
             break
@@ -198,6 +259,7 @@ def import_articles(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dic
             split=args.split,
             offset=offset,
             length=length,
+            backend=args.backend,
         )
         if not rows:
             break
@@ -253,6 +315,7 @@ def main() -> int:
     parser.add_argument("--dataset", default=DEFAULT_DATASET)
     parser.add_argument("--content-config", default="content")
     parser.add_argument("--metadata-config", default="metadata")
+    parser.add_argument("--backend", choices=("auto", "datasets", "rows"), default="auto")
     parser.add_argument("--split", default="data")
     parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--max-docs", type=int, default=1000, help="Number of content rows to scan; use -1 for all rows.")
