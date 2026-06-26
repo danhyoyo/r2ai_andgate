@@ -1,6 +1,6 @@
 # Vietnamese Legal RAG Competition
 
-Pipeline này bám theo rule cuộc thi: tối ưu retrieval trước, sau đó sinh câu trả lời có grounding và kiểm tra citation trước khi nộp.
+Pipeline này bám theo rule cuộc thi: retrieval là trọng tâm vì F2 phụ thuộc mạnh vào `relevant_docs` và `relevant_articles`. Mặc định repo chạy được bằng standard library với BM25 + answer extractive; khi máy có package/model local thì bật thêm BGE-M3, BGE reranker và Qwen2.5-7B-Instruct.
 
 Luồng chính:
 
@@ -17,32 +17,64 @@ Question
 -> flat submission.zip
 ```
 
-## 1. Chuẩn bị dữ liệu luật
+## 1. Dữ liệu hiện tại
 
-Đặt các văn bản pháp luật chính thống dạng UTF-8 `.txt` vào:
+Test set của ban tổ chức đặt đúng tại:
+
+```powershell
+data/test/test.json
+```
+
+Corpus điều luật mà pipeline dùng nằm tại:
+
+```powershell
+data/processed/articles.jsonl
+```
+
+Nếu file này chưa tồn tại, cần import hoặc parse văn bản luật trước khi build index.
+
+## 2. Nguồn luật khuyến nghị
+
+Nguồn chính nên dùng là `th1nhng0/vietnamese-legal-documents` trên Hugging Face, lấy từ cổng VBPL chính thống. Manifest nguồn nằm ở:
+
+```powershell
+configs/sources.json
+```
+
+Import toàn bộ corpus chính cho bản final:
+
+```powershell
+python -m src.preprocess.import_hf_legal `
+  --output data/processed/articles.jsonl `
+  --max-docs -1 `
+  --metadata-scan-limit -1 `
+  --batch-size 200 `
+  --require-metadata
+```
+
+Smoke test nhanh trước khi chạy dài:
+
+```powershell
+python -m src.preprocess.import_hf_legal `
+  --output data/processed/sample_articles.jsonl `
+  --max-docs 20 `
+  --metadata-scan-limit 500 `
+  --batch-size 20
+```
+
+Nếu muốn bổ sung corpus thủ công, đặt `.txt` UTF-8 vào:
 
 ```powershell
 data/raw_laws/
 ```
 
-Parse theo cấp `Điều`:
+Rồi parse theo cấp `Điều`:
 
 ```powershell
 python -m src.preprocess.parse_articles --input data/raw_laws --output data/processed/articles.jsonl
 ```
 
-Nếu parser không suy ra đúng metadata, truyền thủ công cho từng file:
-
-```powershell
-python -m src.preprocess.parse_articles `
-  --input data/raw_laws/luat_ho_tro_dnnvv.txt `
-  --output data/processed/articles.jsonl `
-  --law-id "04/2017/QH14" `
-  --doc-type "Luật" `
-  --doc-title "Luật 04/2017/QH14 Luật Hỗ trợ doanh nghiệp nhỏ và vừa"
-```
-
-## 2. Build BM25 index
+## 3. Build BM25 index
 
 ```powershell
 python -m src.retrieval.bm25_retriever build `
@@ -58,15 +90,38 @@ python -m src.retrieval.pipeline `
   --question "Doanh nghiệp nhỏ và vừa phải đáp ứng điều kiện nào để được hỗ trợ?"
 ```
 
-## 3. Tạo `results.json`
+## 4. Model tốt nhất trong rule
 
-Đặt test set của ban tổ chức tại:
+Cấu hình model nằm ở:
 
 ```powershell
-data/test/test.json
+configs/model.yaml
 ```
 
-Tạo bản balanced, nên dùng cho final/private:
+Stack final khuyến nghị:
+
+- Retrieval bắt buộc: BM25.
+- Dense retrieval: `BAAI/bge-m3`.
+- Reranker: `BAAI/bge-reranker-v2-m3`.
+- Generator local: `Qwen/Qwen2.5-7B-Instruct`.
+
+Cài dependency tùy chọn khi muốn chạy pretrained stack đầy đủ:
+
+```powershell
+python -m pip install -r requirements-optional.txt
+```
+
+Kiểm tra máy hiện tại đã sẵn sàng chưa:
+
+```powershell
+python -m src.models.check_environment
+```
+
+Không dùng API model đóng như GPT-4o hoặc Gemini cho bài nộp.
+
+## 5. Tạo `results.json`
+
+Bản chạy được mọi máy, dùng BM25 + answer extractive:
 
 ```powershell
 python -m src.submit.build_results `
@@ -76,13 +131,7 @@ python -m src.submit.build_results `
   --variant balanced
 ```
 
-Các biến thể:
-
-- `--variant recall`: 7-10 điều, ưu tiên recall cho public probing.
-- `--variant balanced`: 4-7 điều, cân bằng F2 và QA.
-- `--variant precision`: 2-5 điều, answer sạch hơn.
-
-Nếu máy có local model hợp lệ và package sẵn:
+Bản mạnh nhất khi đã có dependency và model local:
 
 ```powershell
 python -m src.submit.build_results `
@@ -95,9 +144,13 @@ python -m src.submit.build_results `
   --model-path D:/models/Qwen2.5-7B-Instruct
 ```
 
-Không dùng API model đóng như GPT-4o hoặc Gemini cho bài nộp.
+Các biến thể chọn điều luật:
 
-## 4. Validate và zip phẳng
+- `--variant recall`: 7-10 điều, ưu tiên recall cho probing.
+- `--variant balanced`: 4-7 điều, cân bằng F2 và QA.
+- `--variant precision`: 2-5 điều, answer sạch hơn.
+
+## 6. Validate và zip phẳng
 
 ```powershell
 python -m src.submit.validate_results --input results/results.json --strict
@@ -111,7 +164,7 @@ submission.zip
 └── results.json
 ```
 
-## 5. Dev set và F2 nội bộ
+## 7. Dev set và F2 nội bộ
 
 Tạo `data/dev/dev_labeled.json` có cùng format output, kèm `relevant_articles` gán thủ công. Sau đó tính macro Precision/Recall/F2:
 
@@ -130,19 +183,10 @@ python -m src.evaluation.ablation `
   --output-dir results/ablation
 ```
 
-## 6. Những điểm dễ mất điểm
+## 8. Files chính
 
-- Answer nhắc `Điều X` nhưng `relevant_articles` không có `Điều X`.
-- `relevant_articles` đúng nhưng answer không nhắc rõ `Điều X`.
-- Tên văn bản sai format `<Loại văn bản> <mã văn bản> <trích yếu>`.
-- Chunk mất metadata `article_number`.
-- Chỉ dùng dense, bỏ BM25.
-- Chọn quá ít điều làm recall thấp hoặc quá nhiều điều làm precision thấp.
-- Nén zip có thư mục con.
-
-## 7. Files chính
-
-- `src/preprocess/parse_articles.py`: clean và split luật theo cấp `Điều`.
+- `src/preprocess/import_hf_legal.py`: tải dataset luật từ Hugging Face, sửa mojibake, strip HTML, split theo `Điều`.
+- `src/preprocess/parse_articles.py`: clean và split luật local `.txt` theo cấp `Điều`.
 - `src/retrieval/bm25_retriever.py`: BM25 không cần dependency ngoài.
 - `src/retrieval/pipeline.py`: query expansion, BM25, optional dense, RRF, rerank, selection.
 - `src/generation/answer_prompt.py`: prompt grounded cho local LLM.
@@ -150,4 +194,3 @@ python -m src.evaluation.ablation `
 - `src/generation/verifier.py`: sửa/kiểm tra citation và schema submission.
 - `src/submit/build_results.py`: tạo `results.json`.
 - `src/submit/zip_submission.py`: tạo zip phẳng.
-

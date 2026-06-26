@@ -1,0 +1,200 @@
+{
+  "primary_corpus": [
+    {
+      "id": "hf_th1nhng0_vietnamese_legal_documents",
+      "name": "th1nhng0/vietnamese-legal-documents",
+      "kind": "huggingface_dataset",
+      "url": "https://huggingface.co/datasets/th1nhng0/vietnamese-legal-documents",
+      "upstream_source": "https://vbpl.vn/",
+      "license": "cc-by-4.0",
+      "role": "article_corpus",
+      "priority": 1,
+      "use_for_final": true,
+      "notes": "Official VBPL-derived legal document corpus with content, metadata, and relationship splits."
+    },
+    {
+      "id": "github_duyet_vietnamese_legal_documents_dataset",
+      "name": "duyet/vietnamese-legal-documents-dataset",
+      "kind": "github_repository",
+      "url": "https://github.com/duyet/vietnamese-legal-documents-dataset",
+      "upstream_source": "https://vbpl.vn/",
+      "license": "see_repository",
+      "role": "corpus_reference",
+      "priority": 2,
+      "use_for_final": true,
+      "notes": "Repository companion for the Vietnamese legal document dataset."
+    },
+    {
+      "id": "github_mlalab_vnlegaltext",
+      "name": "mlalab/VNLegalText",
+      "kind": "github_repository",
+      "url": "https://github.com/mlalab/VNLegalText",
+      "license": "see_repository",
+      "role": "supplemental_corpus",
+      "priority": 3,
+      "use_for_final": true,
+      "notes": "Vietnamese legal document dataset useful as supplemental retrieval/evaluation data."
+    },
+    {
+      "id": "hf_vietnamese_legal_corpus_20k_raw",
+      "name": "52100303-TranPhuocSang/vietnamese-legal-corpus-20k-raw",
+      "kind": "huggingface_dataset",
+      "url": "https://huggingface.co/datasets/52100303-TranPhuocSang/vietnamese-legal-corpus-20k-raw",
+      "license": "mit",
+      "role": "supplemental_corpus",
+      "priority": 4,
+      "use_for_final": true,
+      "notes": "Raw legal corpus that can be normalized into article-level chunks after manual checks."
+    }
+  ],
+  "retrieval_and_dev_sets": [
+    {
+      "id": "hf_yuitc_vietnamese_legal_documents",
+      "name": "YuITC/Vietnamese-Legal-Documents",
+      "kind": "huggingface_dataset",
+      "url": "https://huggingface.co/datasets/YuITC/Vietnamese-Legal-Documents",
+      "license": "mit",
+      "role": "retrieval_benchmark",
+      "priority": 1,
+      "use_for_final": false,
+      "notes": "Question/context retrieval benchmark; useful for tuning but not the main article corpus."
+    },
+    {
+      "id": "github_thiemcun_vietnamese_legal_ir",
+      "name": "thiemcun169/Vietnamese-Legal-Information-Retrieval",
+      "kind": "github_repository",
+      "url": "https://github.com/thiemcun169/Vietnamese-Legal-Information-Retrieval",
+      "license": "see_repository",
+      "role": "retrieval_reference",
+      "priority": 2,
+      "use_for_final": false,
+      "notes": "Implementation/reference project for Vietnamese legal information retrieval."
+    },
+    {
+      "id": "github_hieunguyen_vlegal_bench",
+      "name": "hieunguyen1053/vlegal-bench",
+      "kind": "github_repository",
+      "url": "https://github.com/hieunguyen1053/vlegal-bench",
+      "license": "see_repository",
+      "role": "benchmark",
+      "priority": 3,
+      "use_for_final": false,
+      "notes": "Benchmark/reference only; keep separate from the official test flow."
+    }
+  ],
+  "qa_and_instruction_data": [
+    {
+      "id": "hf_duyet_vietnamese_legal_instruct",
+      "name": "duyet/vietnamese-legal-instruct",
+      "kind": "huggingface_dataset",
+      "url": "https://huggingface.co/datasets/duyet/vietnamese-legal-instruct",
+      "license": "see_dataset",
+      "role": "answer_style_sft_or_dev",
+      "priority": 1,
+      "use_for_final": false,
+      "notes": "Instruction conversations; useful for answer style checks, not as a primary retrieval corpus."
+    },
+    {
+      "id": "github_rusano_knn_vietlegalqa",
+      "name": "rusano-knn/VietLegalQA",
+      "kind": "github_repository",
+      "url": "https://github.com/rusano-knn/VietLegalQA",
+      "license": "see_repository",
+      "role": "qa_dev_data",
+      "priority": 2,
+      "use_for_final": false,
+      "notes": "Vietnamese legal QA generation/evaluation resource."
+    },
+    {
+      "id": "hf_thangvip_vietnamese_legal_qa",
+      "name": "thangvip/vietnamese-legal-qa",
+      "kind": "huggingface_dataset",
+      "url": "https://huggingface.co/datasets/thangvip/vietnamese-legal-qa",
+      "license": "see_dataset",
+      "role": "qa_dev_data",
+      "priority": 3,
+      "use_for_final": false,
+      "notes": "QA data for offline evaluation or instruction-tuning experiments."
+    },
+    {
+      "id": "hf_thangvip_combined_vietnamese_legal_text",
+      "name": "thangvip/combined-vietnamese-legal-text",
+      "kind": "huggingface_dataset",
+      "url": "https://huggingface.co/datasets/thangvip/combined-vietnamese-legal-text",
+      "license": "see_dataset",
+      "role": "pretraining_text",
+      "priority": 4,
+      "use_for_final": false,
+      "notes": "Supplemental text for model adaptation experiments; keep out of the default pipeline unless audited."
+    }
+  ],
+  "model_candidates": [
+    {
+      "id": "qwen2_5_7b_instruct",
+      "name": "Qwen/Qwen2.5-7B-Instruct",
+      "kind": "huggingface_model",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+      "license": "apache-2.0",
+      "role": "generator",
+      "parameters": "7.6B",
+      "released_before_2026_03_01": true,
+      "use_for_final": true,
+      "notes": "Best default local generator under the contest constraints."
+    },
+    {
+      "id": "bge_m3",
+      "name": "BAAI/bge-m3",
+      "kind": "huggingface_model",
+      "url": "https://huggingface.co/BAAI/bge-m3",
+      "license": "mit",
+      "role": "embedding",
+      "released_before_2026_03_01": true,
+      "use_for_final": true,
+      "notes": "Multilingual dense retriever with strong Vietnamese support."
+    },
+    {
+      "id": "bge_reranker_v2_m3",
+      "name": "BAAI/bge-reranker-v2-m3",
+      "kind": "huggingface_model",
+      "url": "https://huggingface.co/BAAI/bge-reranker-v2-m3",
+      "license": "apache-2.0",
+      "role": "reranker",
+      "released_before_2026_03_01": true,
+      "use_for_final": true,
+      "notes": "Cross-encoder reranker for the top BM25/dense candidates."
+    },
+    {
+      "id": "mainguyen9_vietlegal_e5",
+      "name": "mainguyen9/vietlegal-e5",
+      "kind": "huggingface_model",
+      "url": "https://huggingface.co/mainguyen9/vietlegal-e5",
+      "license": "apache-2.0",
+      "role": "legal_embedding_experiment",
+      "released_before_2026_03_01": false,
+      "use_for_final": false,
+      "notes": "Legal-specific but uploaded after the model cutoff; benchmark only unless rules allow."
+    },
+    {
+      "id": "kiencnt_vietnamese_legal_reranker",
+      "name": "kiencnt2205/vietnamese-legal-reranker-bge-base",
+      "kind": "huggingface_model",
+      "url": "https://huggingface.co/kiencnt2205/vietnamese-legal-reranker-bge-base",
+      "license": "see_model",
+      "role": "legal_reranker_experiment",
+      "released_before_2026_03_01": false,
+      "use_for_final": false,
+      "notes": "Legal-specific reranker, but after-cutoff; benchmark only."
+    }
+  ],
+  "leakage_watchlist": [
+    {
+      "id": "hf_noname_fastvilr_conversions",
+      "name": "noname002/* FastViLR legal conversions",
+      "kind": "huggingface_dataset",
+      "url": "https://huggingface.co/noname002",
+      "role": "do_not_use_for_final_without_audit",
+      "use_for_final": false,
+      "notes": "Created around the contest period; keep out of final pipeline unless audited for leakage."
+    }
+  ]
+}

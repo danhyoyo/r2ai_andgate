@@ -3,22 +3,38 @@
 # - under 14B parameters
 # - released before 2026-03-01
 
+retrieval_stack:
+  required_first_stage: bm25
+  optional_dense: true
+  optional_reranker: true
+  fusion: rrf
+  reason: Retrieval carries the largest F2 impact, so BM25 recall stays on even when dense models are available.
+
 generator:
   primary: Qwen/Qwen2.5-7B-Instruct
   fallback: vinai/PhoGPT-4B-Chat
   temperature: 0.0
   top_p: 0.9
   max_new_tokens: 768
+  contest_safe: true
 
 embedding:
   primary: BAAI/bge-m3
   benchmark:
     - hmthanh/VietnamLegalText-SBERT
+  contest_safe: true
 
 reranker:
   primary: BAAI/bge-reranker-v2-m3
+  contest_safe: true
+
+excluded_or_benchmark_only:
+  - name: mainguyen9/vietlegal-e5
+    reason: Legal-specific, but uploaded after the 2026-03-01 model cutoff; benchmark only unless rules allow.
+  - name: kiencnt2205/vietnamese-legal-reranker-bge-base
+    reason: Legal-specific, but uploaded after the 2026-03-01 model cutoff; benchmark only unless rules allow.
 
 notes:
   - Do not use closed model APIs such as GPT-4o or Gemini for submission generation.
-  - Keep model download paths and license/source notes in the working notes paper.
-
+  - Keep model download paths and license/source notes in configs/sources.json.
+  - If optional packages are missing, the code falls back to BM25 plus extractive grounded answers.
