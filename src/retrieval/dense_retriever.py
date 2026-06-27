@@ -31,7 +31,7 @@ class DenseIndex:
                 "Dense retrieval requires sentence-transformers. "
                 "Install it and make sure model weights are available locally."
             ) from exc
-        device = sentence_transformer_device(purpose="dense retrieval")
+        device = sentence_transformer_device(purpose="dense retrieval", env_var="R2AI_DENSE_DEVICE")
         self._model = SentenceTransformer(self.model_name, device=device) if device else SentenceTransformer(self.model_name)
         return self._model
 

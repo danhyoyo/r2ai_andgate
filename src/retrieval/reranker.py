@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os
 from typing import Any
 
 from src.common.schema import ensure_full_text
@@ -67,8 +68,16 @@ class CrossEncoderReranker:
             from sentence_transformers import CrossEncoder
         except ImportError as exc:
             raise RuntimeError("Cross-encoder reranking requires sentence-transformers.") from exc
-        device = sentence_transformer_device(purpose="cross-encoder reranking")
+        device = sentence_transformer_device(
+            purpose="cross-encoder reranking",
+            env_var="R2AI_RERANK_DEVICE",
+            min_free_gb_env="R2AI_MIN_RERANK_FREE_GB",
+            min_free_gb=6.0,
+        )
         self.model = CrossEncoder(model_name, device=device) if device else CrossEncoder(model_name)
+        self.batch_size = max(1, int(os.environ.get("R2AI_RERANK_BATCH_SIZE", "2")))
+        self.disabled = False
+        self.fallback = RuleBasedReranker()
 
     def rerank(
         self,
@@ -78,6 +87,9 @@ class CrossEncoderReranker:
         *,
         top_k: int = 20,
     ) -> list[dict[str, Any]]:
+        if self.disabled:
+            return self.fallback.rerank(question, hits, articles_by_id, top_k=top_k)
+
         pairs: list[tuple[str, str]] = []
         usable_hits: list[dict[str, Any]] = []
         for hit in hits:
@@ -86,7 +98,23 @@ class CrossEncoderReranker:
                 continue
             pairs.append((question, ensure_full_text(article)))
             usable_hits.append(hit)
-        scores = self.model.predict(pairs)
+        if not pairs:
+            return []
+        try:
+            scores = self.model.predict(pairs, batch_size=self.batch_size)
+        except Exception as exc:
+            message = str(exc).lower()
+            if "out of memory" in message or "cuda" in message and "memory" in message:
+                print(f"Cross-encoder reranker disabled after runtime failure: {exc}")
+                self.disabled = True
+                try:
+                    import torch
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                except Exception:
+                    pass
+                return self.fallback.rerank(question, hits, articles_by_id, top_k=top_k)
+            raise
         reranked: list[dict[str, Any]] = []
         for hit, score in zip(usable_hits, scores):
             updated = dict(hit)
