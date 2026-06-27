@@ -61,16 +61,35 @@ class BM25Index:
     def save(self, path: str | Path) -> None:
         output = Path(path)
         output.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "format": "r2ai_bm25_index",
+            "version": 1,
+            "k1": self.k1,
+            "b": self.b,
+            "doc_ids": self.doc_ids,
+            "doc_lengths": self.doc_lengths,
+            "avgdl": self.avgdl,
+            "postings": self.postings,
+            "idf": self.idf,
+        }
         with output.open("wb") as f:
-            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     @staticmethod
     def load(path: str | Path) -> "BM25Index":
         with Path(path).open("rb") as f:
             value = pickle.load(f)
-        if not isinstance(value, BM25Index):
-            raise TypeError(f"{path} is not a BM25Index")
-        return value
+        if isinstance(value, BM25Index):
+            return value
+        if isinstance(value, dict) and value.get("format") == "r2ai_bm25_index":
+            index = BM25Index(k1=float(value["k1"]), b=float(value["b"]))
+            index.doc_ids = list(value["doc_ids"])
+            index.doc_lengths = list(value["doc_lengths"])
+            index.avgdl = float(value["avgdl"])
+            index.postings = value["postings"]
+            index.idf = value["idf"]
+            return index
+        raise TypeError(f"{path} is not a supported BM25 index")
 
 
 def main() -> int:

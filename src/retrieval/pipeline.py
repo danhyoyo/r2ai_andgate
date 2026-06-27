@@ -38,7 +38,12 @@ class RetrievalPipeline:
 
         bm25_path = Path(bm25_index_path)
         if bm25_path.exists():
-            self.bm25 = BM25Index.load(bm25_path)
+            try:
+                self.bm25 = BM25Index.load(bm25_path)
+            except Exception as exc:
+                print(f"Rebuilding BM25 index because existing index is incompatible: {exc}")
+                self.bm25 = BM25Index.from_articles(self.articles)
+                self.bm25.save(bm25_path)
         else:
             self.bm25 = BM25Index.from_articles(self.articles)
             self.bm25.save(bm25_path)
