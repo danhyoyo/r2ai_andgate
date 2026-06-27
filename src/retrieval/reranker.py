@@ -5,6 +5,7 @@ from typing import Any
 
 from src.common.schema import ensure_full_text
 from src.common.text import tokenize
+from src.retrieval.device import sentence_transformer_device
 from src.retrieval.query_processing import build_query_profile
 
 
@@ -66,7 +67,8 @@ class CrossEncoderReranker:
             from sentence_transformers import CrossEncoder
         except ImportError as exc:
             raise RuntimeError("Cross-encoder reranking requires sentence-transformers.") from exc
-        self.model = CrossEncoder(model_name)
+        device = sentence_transformer_device(purpose="cross-encoder reranking")
+        self.model = CrossEncoder(model_name, device=device) if device else CrossEncoder(model_name)
 
     def rerank(
         self,

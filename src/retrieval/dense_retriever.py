@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from src.common.schema import ensure_article_id, ensure_full_text
+from src.retrieval.device import sentence_transformer_device
 
 
 class DenseRetrieverUnavailable(RuntimeError):
@@ -30,7 +31,8 @@ class DenseIndex:
                 "Dense retrieval requires sentence-transformers. "
                 "Install it and make sure model weights are available locally."
             ) from exc
-        self._model = SentenceTransformer(self.model_name)
+        device = sentence_transformer_device(purpose="dense retrieval")
+        self._model = SentenceTransformer(self.model_name, device=device) if device else SentenceTransformer(self.model_name)
         return self._model
 
     def build(self, articles: list[dict[str, Any]], *, batch_size: int = 16) -> None:
