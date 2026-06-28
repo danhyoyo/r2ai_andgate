@@ -103,18 +103,15 @@ class CrossEncoderReranker:
         try:
             scores = self.model.predict(pairs, batch_size=self.batch_size)
         except Exception as exc:
-            message = str(exc).lower()
-            if "out of memory" in message or "cuda" in message and "memory" in message:
-                print(f"Cross-encoder reranker disabled after runtime failure: {exc}")
-                self.disabled = True
-                try:
-                    import torch
-                    if torch.cuda.is_available():
-                        torch.cuda.empty_cache()
-                except Exception:
-                    pass
-                return self.fallback.rerank(question, hits, articles_by_id, top_k=top_k)
-            raise
+            print(f"Cross-encoder reranker disabled after runtime failure: {exc}")
+            self.disabled = True
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+            return self.fallback.rerank(question, hits, articles_by_id, top_k=top_k)
         reranked: list[dict[str, Any]] = []
         for hit, score in zip(usable_hits, scores):
             updated = dict(hit)

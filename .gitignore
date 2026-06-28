@@ -16,4 +16,7 @@ results/results.json
 results/submission.zip
 results/ablation/
 !results/README.md
+# Generated or uploaded corpora.
+data/processed/*.jsonl
+!data/processed/README.md
 

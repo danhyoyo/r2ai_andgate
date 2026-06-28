@@ -109,16 +109,26 @@ def generate_answer(question: str, articles: list[dict[str, Any]], *, model_path
         return generate_extractive_answer(question, articles)
 
     prompt = build_answer_prompt(question, articles)
-    tokenizer, model = _load_local_llm(model_path)
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    output = model.generate(
-        **inputs,
-        max_new_tokens=768,
-        do_sample=False,
-        pad_token_id=tokenizer.eos_token_id,
-    )
-    text = tokenizer.decode(output[0], skip_special_tokens=True)
-    return text[len(prompt) :].strip() if text.startswith(prompt) else text.strip()
+    try:
+        tokenizer, model = _load_local_llm(model_path)
+        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+        output = model.generate(
+            **inputs,
+            max_new_tokens=768,
+            do_sample=False,
+            pad_token_id=tokenizer.eos_token_id,
+        )
+        text = tokenizer.decode(output[0], skip_special_tokens=True)
+        return text[len(prompt) :].strip() if text.startswith(prompt) else text.strip()
+    except Exception as exc:
+        print(f"Local LLM generation disabled after runtime failure: {exc}")
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+        return generate_extractive_answer(question, articles)
 
 
 def main() -> int:

@@ -61,11 +61,14 @@ class RetrievalPipeline:
             except DenseRetrieverUnavailable as exc:
                 print(f"Dense retrieval disabled: {exc}")
                 self.dense = None
+            except Exception as exc:
+                print(f"Dense retrieval disabled after initialization failure: {exc}")
+                self.dense = None
 
         if use_cross_encoder:
             try:
                 self.reranker = CrossEncoderReranker()
-            except RuntimeError as exc:
+            except Exception as exc:
                 print(f"Cross-encoder reranker disabled: {exc}")
                 self.reranker = RuleBasedReranker()
         else:
@@ -106,9 +109,13 @@ class RetrievalPipeline:
         weights.append(0.6)
 
         if self.dense is not None:
-            dense_hits = self.dense.search(profile.normalized, top_k=dense_top_k)
-            ranked_lists.append([article_id for article_id, _ in dense_hits])
-            weights.append(1.0)
+            try:
+                dense_hits = self.dense.search(profile.normalized, top_k=dense_top_k)
+                ranked_lists.append([article_id for article_id, _ in dense_hits])
+                weights.append(1.0)
+            except Exception as exc:
+                print(f"Dense retrieval disabled after runtime failure: {exc}")
+                self.dense = None
 
         fused = reciprocal_rank_fusion(ranked_lists, k=60, weights=weights)[:100]
         return [
@@ -122,7 +129,12 @@ class RetrievalPipeline:
         ]
 
     def rerank(self, question: str, candidates: list[dict[str, Any]], *, top_k: int = 20) -> list[dict[str, Any]]:
-        return self.reranker.rerank(question, candidates, self.articles_by_id, top_k=top_k)
+        try:
+            return self.reranker.rerank(question, candidates, self.articles_by_id, top_k=top_k)
+        except Exception as exc:
+            print(f"Reranker disabled after runtime failure: {exc}")
+            self.reranker = RuleBasedReranker()
+            return self.reranker.rerank(question, candidates, self.articles_by_id, top_k=top_k)
 
     def select_articles(self, hits: list[dict[str, Any]], *, variant: str = "balanced") -> list[dict[str, Any]]:
         policy = SELECTION_POLICIES.get(variant, SELECTION_POLICIES["balanced"])
@@ -146,6 +158,8 @@ class RetrievalPipeline:
     def retrieve(self, question: str, *, variant: str = "balanced") -> list[dict[str, Any]]:
         candidates = self.retrieve_candidates(question)
         reranked = self.rerank(question, candidates, top_k=20)
+        if not reranked and candidates:
+            reranked = candidates[:20]
         return self.select_articles(reranked, variant=variant)
 
 
